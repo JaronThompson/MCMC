@@ -24,27 +24,20 @@ class MC:
     def fit(self, data, K):
         return self.MCMC(data, K)
 
-    def predict(self, X, K):
-
-        posterior = mvn(np.mean(self.XI, 0), np.cov(self.XI.T))
-        NS_test, NF = X.shape
-        Y_test = np.zeros([K, NS_test])
-
-        for i in range(K):
-            Y_test[i, :] = self.model(posterior.rvs(), X)
-
-        return np.mean(Y_test, 0), np.std(Y_test, 0)
+    def predict(self, X):
+        Y_pred = self.model(np.mean(self.XI, 0), X)
+        Y_err = self.model(np.std(self.XI, 0), X)
+        return Y_pred, Y_err
 
     def likelihood(self, xi, X, y):
         # unpack data
         N = len(y)
 
         # evaluate log of likelihood fxn
-        beta = 1 #1 / sd**2
+        beta = 1
         lnL = -beta/2 * np.sum((y - self.model(xi, X))**2) + N/2*np.log(beta) - N/2 * np.log(2*np.pi)
 
-        #mse = np.sum((y - self.model(xi, X))**2)
-        return np.exp(lnL) #np.exp(mse)
+        return np.exp(lnL)
 
     def MCMC(self, data, K):
         # metropolis hastings algorithm to generate posterior distributions
@@ -78,7 +71,7 @@ class MC:
 
         self.XI = XI
 
-        return np.mean(XI, 0), np.cov(XI.T)
+        return np.mean(XI, 0), np.std(XI, 0)
 
 #%%
 
@@ -110,11 +103,12 @@ prior = [mu, Sigma]
 mc = MC(model, prior)
 
 # fit model to data using K samples from the proposal distribution
-posterior = mc.fit([X_train, Y_train], K=5000)
+w, sd = mc.fit([X_train, Y_train], K=5000)
 
-Y_pred, err = mc.predict(X_test, K=100)
+Y_pred, err = mc.predict(X_test)
 
+#%%
 slope, intercept, r_value, p_value, std_err = linregress(Y_test, Y_pred)
-plt.errorbar(Y_test, Y_pred, linestyle='none', marker='o', yerr = err, label='R = {:.3f}'.format(r_value))
+plt.errorbar(Y_test, Y_pred, capsize=3, linestyle='none', marker='o', yerr = err, label='R = {:.3f}'.format(r_value))
 plt.legend()
 plt.show()
